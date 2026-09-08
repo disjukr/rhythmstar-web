@@ -1,0 +1,19 @@
+:root {
+  color-scheme: dark;
+  background: #000;
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+
+canvas {
+  display: block;
+  width: min(360px, 100vw, 75dvh);
+  aspect-ratio: 3 / 4;
+  image-rendering: pixelated;
+  background: #000;
+}
