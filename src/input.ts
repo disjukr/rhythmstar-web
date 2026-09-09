@@ -7,6 +7,18 @@ type InputTarget = { keyDown(key: GameKey): void; keyUp(key: GameKey): void; rel
 export class KeyboardInput {
   readonly #bindings = new Map<string, GameKey>();
   readonly #pressed = new Map<string, GameKey>();
+  readonly #listeners = new Set<(keys: ReadonlySet<GameKey>) => void>();
+
+  onPressedChange(listener: (keys: ReadonlySet<GameKey>) => void): () => void {
+    this.#listeners.add(listener);
+    listener(new Set(this.#pressed.values()));
+    return () => { this.#listeners.delete(listener); };
+  }
+
+  #notifyPressedChange(): void {
+    const keys = new Set(this.#pressed.values());
+    for (const listener of this.#listeners) listener(keys);
+  }
 
   constructor(readonly target: InputTarget, bindings: KeyBindings = KEY_BINDINGS) {
     for (const action of Object.keys(bindings) as GameKey[]) {
@@ -39,7 +51,10 @@ export class KeyboardInput {
     if (this.#pressed.has(source)) return;
     const alreadyHeld = [...this.#pressed.values()].includes(action);
     this.#pressed.set(source, action);
-    if (!alreadyHeld) this.target.keyDown(action);
+    if (!alreadyHeld) {
+      this.target.keyDown(action);
+      this.#notifyPressedChange();
+    }
   }
 
   release(source: string): void {
@@ -47,11 +62,15 @@ export class KeyboardInput {
     if (action === undefined) return;
     this.#pressed.delete(source);
     // Releasing one alias must not release a long note held by another key.
-    if (![...this.#pressed.values()].includes(action)) this.target.keyUp(action);
+    if (![...this.#pressed.values()].includes(action)) {
+      this.target.keyUp(action);
+      this.#notifyPressedChange();
+    }
   }
 
   releaseKeys(): void {
     this.#pressed.clear();
     this.target.releaseKeys();
+    this.#notifyPressedChange();
   }
 }

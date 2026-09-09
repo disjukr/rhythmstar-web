@@ -12,11 +12,10 @@ const KEYS: readonly (readonly [GameKey, string, string])[] = [
 
 export function mountVirtualKeyboard(container: HTMLElement, input: KeyboardInput): void {
   const pointers = new Map<number, HTMLButtonElement>();
+  const buttons = new Map<GameKey, HTMLButtonElement>();
   const release = (pointerId: number): void => {
-    const button = pointers.get(pointerId);
     pointers.delete(pointerId);
     input.release(`pointer:${pointerId}`);
-    if (button && ![...pointers.values()].includes(button)) button.classList.remove("pressed");
   };
   const reset = (): void => {
     for (const pointerId of pointers.keys()) release(pointerId);
@@ -32,7 +31,6 @@ export function mountVirtualKeyboard(container: HTMLElement, input: KeyboardInpu
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, button);
-      button.classList.add("pressed");
       input.press(`pointer:${event.pointerId}`, key);
     });
     for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"] as const) {
@@ -46,7 +44,11 @@ export function mountVirtualKeyboard(container: HTMLElement, input: KeyboardInpu
       input.release(source);
     });
     container.append(button);
+    buttons.set(key, button);
   }
+  input.onPressedChange(keys => {
+    for (const [key, button] of buttons) button.classList.toggle("pressed", keys.has(key));
+  });
   container.addEventListener("contextmenu", event => event.preventDefault());
   window.addEventListener("blur", reset);
   document.addEventListener("visibilitychange", () => {
