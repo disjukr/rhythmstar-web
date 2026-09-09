@@ -11,8 +11,31 @@ const KEYS: readonly (readonly [GameKey, string, string])[] = [
 ];
 
 export function mountVirtualKeyboard(container: HTMLElement, input: KeyboardInput): void {
-  const pointers = new Map<number, HTMLButtonElement>();
+  const press = (source: string, key: GameKey): void => {
+    input.press(source, key);
+    navigator.vibrate?.(10);
+  };
+  const pointers = new Map<number, { x: number; y: number; key: GameKey | undefined }>();
   const buttons = new Map<GameKey, HTMLButtonElement>();
+  const buttonKeys = new Map<Element, GameKey>();
+  const move = (event: PointerEvent): void => {
+    const pointer = pointers.get(event.pointerId);
+    if (!pointer) return;
+    // Sample the path so a fast swipe still hits keys between pointer events.
+    const dx = event.clientX - pointer.x;
+    const dy = event.clientY - pointer.y;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
+    for (let step = 1; step <= steps; step++) {
+      const element = document.elementFromPoint(pointer.x + dx * step / steps, pointer.y + dy * step / steps);
+      const key = element ? buttonKeys.get(element) : undefined;
+      if (key === pointer.key) continue;
+      input.release(`pointer:${event.pointerId}`);
+      pointer.key = key;
+      if (key !== undefined) press(`pointer:${event.pointerId}`, key);
+    }
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+  };
   const release = (pointerId: number): void => {
     pointers.delete(pointerId);
     input.release(`pointer:${pointerId}`);
@@ -30,8 +53,15 @@ export function mountVirtualKeyboard(container: HTMLElement, input: KeyboardInpu
       if (event.button !== 0) return;
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
-      pointers.set(event.pointerId, button);
-      input.press(`pointer:${event.pointerId}`, key);
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, key });
+      press(`pointer:${event.pointerId}`, key);
+    });
+    button.addEventListener("pointermove", event => {
+      if (!pointers.has(event.pointerId)) return;
+      event.preventDefault();
+      const samples = event.getCoalescedEvents?.() ?? [];
+      for (const sample of samples) move(sample);
+      move(event);
     });
     for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"] as const) {
       button.addEventListener(eventName, event => release(event.pointerId));
@@ -40,11 +70,12 @@ export function mountVirtualKeyboard(container: HTMLElement, input: KeyboardInpu
     button.addEventListener("click", event => {
       if (event.detail !== 0) return;
       const source = `virtual:${key}`;
-      input.press(source, key);
+      press(source, key);
       input.release(source);
     });
     container.append(button);
     buttons.set(key, button);
+    buttonKeys.set(button, key);
   }
   input.onPressedChange(keys => {
     for (const [key, button] of buttons) button.classList.toggle("pressed", keys.has(key));
