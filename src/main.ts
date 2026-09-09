@@ -3,7 +3,8 @@ import { mountVirtualKeyboard } from "./virtual-keyboard";
 import { BrowserMusic } from "./audio";
 import { loadResources } from "./resources";
 import { RhythmStarGame } from "./game";
-import { BacklightPort, ClockPort, EffectTrace, ScreenPort, StoragePort } from "./io";
+import { BacklightPort, EffectTrace, ScreenPort, StoragePort } from "./io";
+import { browserClock } from "./browser-clock";
 const resourceUrls = import.meta.glob<string>("../assets/res/**/*", { query: "?url", import: "default", eager: true });
 
 const requireElement = <T extends Element>(selector: string): T => {
@@ -55,14 +56,6 @@ class BrowserStorage implements StoragePort {
   }
 }
 
-const clock: ClockPort = {
-  now: () => Date.now(),
-  every: (milliseconds, callback) => {
-    const timer = window.setInterval(callback, milliseconds);
-    return () => window.clearInterval(timer);
-  },
-};
-
 const backlight: BacklightPort = {
   configure: enabled => {
     document.documentElement.dataset.backlight = enabled ? "on" : "off";
@@ -84,7 +77,7 @@ const load = async (): Promise<void> => {
     const game = new RhythmStarGame({
       resources,
       storage: new BrowserStorage(),
-      clock,
+      clock: browserClock,
       screen: new BrowserScreen(),
       backlight,
       trace,
