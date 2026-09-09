@@ -1,4 +1,5 @@
 import { KeyboardInput } from "./input";
+import { mountVirtualKeyboard } from "./virtual-keyboard";
 import { BrowserMusic } from "./audio";
 import { loadResources } from "./resources";
 import { RhythmStarGame } from "./game";
@@ -91,6 +92,7 @@ const load = async (): Promise<void> => {
       vibration: { pulse: milliseconds => { navigator.vibrate?.(milliseconds); } },
     });
     const input = new KeyboardInput(game);
+    mountVirtualKeyboard(requireElement<HTMLElement>("#virtual-keyboard"), input);
     game.start();
     window.addEventListener("keydown", event => {
       music.unlock();
@@ -98,6 +100,9 @@ const load = async (): Promise<void> => {
     });
     window.addEventListener("keyup", event => input.keyUp(event));
     window.addEventListener("blur", () => input.releaseKeys());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) input.releaseKeys();
+    });
     window.addEventListener("pointerdown", () => music.unlock());
     window.addEventListener("beforeunload", () => { game.stop(); music.close(); }, { once: true });
   } catch (error) {

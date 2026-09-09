@@ -17,3 +17,58 @@ canvas {
   image-rendering: pixelated;
   background: #000;
 }
+
+#virtual-keyboard {
+  display: none;
+}
+
+@media (max-width: 600px), (pointer: coarse) {
+  body {
+    box-sizing: border-box;
+    padding: max(8px, env(safe-area-inset-top)) 12px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .phone {
+    width: min(360px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  canvas {
+    width: min(100%, max(180px, calc((100dvh - 328px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 0.75)));
+  }
+
+  #virtual-keyboard {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  #virtual-keyboard button {
+    height: 46px;
+    padding: 0;
+    border: 1px solid #454550;
+    border-radius: 6px;
+    background: #202028;
+    color: #fff;
+    font: 600 18px system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #virtual-keyboard button.pressed {
+    background: #6550a0;
+    border-color: #c4b4ff;
+  }
+
+  #virtual-keyboard button:focus-visible {
+    outline: 2px solid #c4b4ff;
+    outline-offset: 1px;
+  }
+}

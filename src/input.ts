@@ -24,9 +24,7 @@ export class KeyboardInput {
     if (action === undefined) return;
     event.preventDefault();
     if (event.repeat || this.#pressed.has(physicalKey)) return;
-    const alreadyHeld = [...this.#pressed.values()].includes(action);
-    this.#pressed.set(physicalKey, action);
-    if (!alreadyHeld) this.target.keyDown(action);
+    this.press(physicalKey, action);
   }
 
   keyUp(event: KeyEvent): void {
@@ -34,7 +32,20 @@ export class KeyboardInput {
     const action = this.#pressed.get(physicalKey);
     if (action === undefined) return;
     event.preventDefault();
-    this.#pressed.delete(physicalKey);
+    this.release(physicalKey);
+  }
+
+  press(source: string, action: GameKey): void {
+    if (this.#pressed.has(source)) return;
+    const alreadyHeld = [...this.#pressed.values()].includes(action);
+    this.#pressed.set(source, action);
+    if (!alreadyHeld) this.target.keyDown(action);
+  }
+
+  release(source: string): void {
+    const action = this.#pressed.get(source);
+    if (action === undefined) return;
+    this.#pressed.delete(source);
     // Releasing one alias must not release a long note held by another key.
     if (![...this.#pressed.values()].includes(action)) this.target.keyUp(action);
   }
