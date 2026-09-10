@@ -40,7 +40,15 @@ export class BrowserMusic implements MusicPort {
   }
 
   unlock(): void {
-    if (this.#context.state === "suspended") void this.#context.resume().catch(this.onError);
+    if (this.#context.state === "closed") return;
+    // Where supported, treat game audio as media playback, including on iOS
+    // devices with the ring/silent switch enabled.
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session && session.type !== "playback") {
+      try { session.type = "playback"; } catch (error) { this.onError(error); }
+    }
+    // Safari can enter "interrupted" after switching apps or locking the phone.
+    if (this.#context.state !== "running") void this.#context.resume().catch(this.onError);
   }
 
   play(data: Uint8Array, repeat: boolean): void {

@@ -96,7 +96,11 @@ const load = async (): Promise<void> => {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) input.releaseKeys();
     });
-    window.addEventListener("pointerdown", () => music.unlock());
+    // Touch user activation happens on release. Capture also handles controls
+    // that cancel default pointer behavior; keep these handlers synchronous.
+    for (const eventName of ["pointerdown", "pointerup", "touchend", "click"] as const) {
+      window.addEventListener(eventName, () => music.unlock(), { capture: true, passive: true });
+    }
     window.addEventListener("beforeunload", () => { game.stop(); music.close(); }, { once: true });
   } catch (error) {
     console.error("Game loading failed:", error);
