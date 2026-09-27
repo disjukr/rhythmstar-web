@@ -19,7 +19,7 @@ import { drawVrpFrameBottomUp, parseVrp, VrpArchive, VrpPlayer } from "./vrp";
 import { nativeCosine, nativeSine } from "./original-math";
 import { MenuScreens, MENU_STATE_IDS, MenuPhase } from "./menu-screens";
 import { SelectionScreens, SELECTION_STATE_IDS, SelectionPhase } from "./selection-screens";
-import { SaveData, SOUND_LEVELS } from "./save-data";
+import { KeypadLayout, SaveData, SOUND_LEVELS } from "./save-data";
 import { GameSession } from "./game-session";
 import { DownloadScreen } from "./download-screen";
 import { PlanetScreen } from "./planet-screen";
@@ -109,6 +109,7 @@ export class RhythmStarGame {
   #selectedPlayer: VrpPlayer | undefined;
   #pendingPhase: "title" | "mainMenu" | "restart" | "gameplay" | "download" | "planet" | "help" | "credits" | MenuPhase | SelectionPhase | undefined;
   #save: SaveData | undefined;
+  #keypad = new KeypadLayout(undefined);
   #menus: MenuScreens | undefined;
   #selection: SelectionScreens | undefined;
   #session: GameSession | undefined;
@@ -122,6 +123,11 @@ export class RhythmStarGame {
 
   get state(): RhythmStarState {
     return this.#state;
+  }
+
+  get keypadFlipped(): boolean {
+    const lanes = this.#state.phase === "gameplay" ? this.#session?.engine.phase : undefined;
+    return this.#keypad.flipped && (lanes === "ready" || lanes === "playing");
   }
 
   start(): void {
@@ -149,6 +155,7 @@ export class RhythmStarGame {
     const profiles = parseDeviceProfiles(init);
     const deviceProfile = profiles.find(profile => profile.model === "Emulator") ?? DEFAULT_DEVICE_PROFILE;
     this.#save = new SaveData(savedata, deviceProfile);
+    this.#keypad = new KeypadLayout(this.io.storage.read(KeypadLayout.FILE));
     this.io.music.setVolume(SOUND_LEVELS[this.#save.volume] ?? SOUND_LEVELS[3]);
     this.#readResource("res/Font/hfont_wg.fnt");
     this.#englishFont = new BitmapFont(this.#readResource("res/Font/efont_12_8.fnt"));
@@ -248,7 +255,7 @@ export class RhythmStarGame {
       this.#state = { ...this.#state, phase: this.#pendingPhase, phaseStartedAt: now };
     } else if (this.#pendingPhase) {
       if (!this.#save) throw new Error("Save data was not initialized");
-      this.#menus ??= new MenuScreens(this.io, this.#save, this.#readResource);
+      this.#menus ??= new MenuScreens(this.io, this.#save, this.#keypad, this.#readResource);
       this.#menus.enter(this.#pendingPhase);
       this.#state = { ...this.#state, phase: this.#pendingPhase, phaseStartedAt: now };
       this.io.trace.record("state.enter", { state: MENU_STATE_IDS[this.#pendingPhase], phase: this.#pendingPhase });

@@ -29,5 +29,16 @@ export class SaveData {
   set delay(value: number) { this.view.setInt32(12, value, true); }
 }
 
+export class KeypadLayout {
+  static readonly FILE = "keypad.dat";
+  flipped: boolean;
+
+  constructor(saved: Uint8Array | undefined) {
+    this.flipped = saved?.[0] === 1;
+  }
+
+  get bytes(): Uint8Array { return Uint8Array.of(Number(this.flipped)); }
+}
+
 // Native volume conversion at 0x115fd0, in percent.
 export const SOUND_LEVELS = [0, 0.15, 0.3, 0.5, 0.75, 1] as const;

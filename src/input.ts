@@ -2,7 +2,9 @@ import type { GameKey } from "./game";
 import { KEY_BINDINGS, type KeyBindings } from "./key-bindings";
 
 type KeyEvent = Pick<KeyboardEvent, "key" | "code" | "repeat" | "preventDefault">;
-type InputTarget = { keyDown(key: GameKey): void; keyUp(key: GameKey): void; releaseKeys(): void };
+type InputTarget = { keyDown(key: GameKey): void; keyUp(key: GameKey): void; releaseKeys(): void; readonly keypadFlipped: boolean };
+
+const FLIPPED_ROWS: Partial<Record<GameKey, GameKey>> = { "1": "7", "2": "8", "3": "9", "7": "1", "8": "2", "9": "3" };
 
 export class KeyboardInput {
   readonly #bindings = new Map<string, GameKey>();
@@ -32,7 +34,8 @@ export class KeyboardInput {
 
   keyDown(event: KeyEvent): void {
     const physicalKey = event.code || event.key;
-    const action = this.#pressed.get(physicalKey) ?? this.#bindings.get(event.key);
+    const bound = this.#bindings.get(event.key);
+    const action = this.#pressed.get(physicalKey) ?? (bound && this.target.keypadFlipped ? FLIPPED_ROWS[bound] ?? bound : bound);
     if (action === undefined) return;
     event.preventDefault();
     if (event.repeat || this.#pressed.has(physicalKey)) return;

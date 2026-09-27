@@ -2,7 +2,7 @@ import type { GameKey } from "./game";
 import { GameFont } from "./font";
 import type { Rgb565Framebuffer } from "./framebuffer";
 import type { RhythmStarIo } from "./io";
-import { SaveData, SOUND_LEVELS } from "./save-data";
+import { KeypadLayout, SaveData, SOUND_LEVELS } from "./save-data";
 import { drawVrpFrameBottomUp, parseVrp, VrpArchive, VrpPlayer } from "./vrp";
 
 export type MenuPhase = "scores" | "options" | "trophies" | "report" | "rankingStart" | "rankingConfirm" | "rankingError";
@@ -25,10 +25,11 @@ export class MenuScreens {
   #yes = true;
   readonly #archive: VrpArchive;
   #help: VrpArchive | undefined;
+  #options: VrpArchive | undefined;
   #window: VrpArchive | undefined;
   readonly #font: GameFont;
 
-  constructor(readonly io: RhythmStarIo, readonly save: SaveData, readonly read: (path: string) => Uint8Array) {
+  constructor(readonly io: RhythmStarIo, readonly save: SaveData, readonly keypad: KeypadLayout, readonly read: (path: string) => Uint8Array) {
     this.#archive = parseVrp(read("res/Vrp/MusicSelect2.vrp"));
     this.#font = new GameFont(read("res/Font/hfont_wg.fnt"), read("res/Font/efont_12_8.fnt"));
   }
@@ -41,7 +42,8 @@ export class MenuScreens {
       this.page = this.row = 0;
       this.#background = 34;
       this.#base = players([55]);
-      this.#dynamic = players([67, 44, 46, 54, 50, 51, 59, 56, 58, 35]);
+      this.#options ??= parseVrp(this.read("res/Vrp/MusicSelect2_Option.vrp"));
+      this.#dynamic = [new VrpPlayer(this.#options, 0), ...players([44, 46, 54, 50, 51, 59, 56, 58, 35])];
       this.#refreshOptions();
     } else if (phase === "scores") {
       this.#background = 87;
@@ -144,15 +146,18 @@ export class MenuScreens {
           }
         }
         else if (this.page === 1) this.save.delay = Math.max(-600, Math.min(600, this.save.delay + direction * 200));
-        else this.save.sync = Math.max(-3, Math.min(3, this.save.sync + direction));
+        else if (this.page === 2) this.save.sync = Math.max(-3, Math.min(3, this.save.sync + direction));
+        else this.keypad.flipped = direction > 0;
         this.#refreshOptions();
       } else if (has("star") || has("hash")) {
-        this.page = Math.max(0, Math.min(2, this.page + (has("star") ? -1 : 1)));
+        this.page = Math.max(0, Math.min(3, this.page + (has("star") ? -1 : 1)));
         p[has("star") ? 1 : 2].select(has("star") ? 45 : 47);
         this.#refreshOptions();
       } else if (has("back") || has("ok")) {
         this.io.storage.write("savedata.dat", this.save.bytes);
         this.io.trace.record("storage.write", { name: "savedata.dat", size: this.save.bytes.length });
+        this.io.storage.write(KeypadLayout.FILE, this.keypad.bytes);
+        this.io.trace.record("storage.write", { name: KeypadLayout.FILE, size: this.keypad.bytes.length });
         return "mainMenu";
       }
     }
@@ -160,8 +165,8 @@ export class MenuScreens {
 
   #refreshOptions(): void {
     const p = this.#dynamic;
+    p[0].select(this.page);
     if (this.page === 0) {
-      p[0].select(67);
       p[3].select(54 - this.row); p[4].select(50 - this.row);
       p[5].select(this.save.volume ? 52 : 51);
       p[6].select(this.save.volume ? 58 + this.save.volume : 43);
@@ -169,10 +174,12 @@ export class MenuScreens {
       p[8].select(58); p[8].frame = this.save.vibrationEnabled ? 0 : 1;
       p[9].select(43);
     } else {
-      p[0].select(this.page === 1 ? 66 : 65);
       p[3].select(54); p[4].select(48);
       for (const index of [5, 6, 7, 8]) p[index].select(43);
-      p[9].select(38 + (this.page === 1 ? Math.trunc(this.save.delay / 200) : this.save.sync));
+      if (this.page === 3) {
+        p[0].frame = Number(this.keypad.flipped);
+        p[9].select(43);
+      } else p[9].select(38 + (this.page === 1 ? Math.trunc(this.save.delay / 200) : this.save.sync));
     }
   }
 
@@ -201,9 +208,12 @@ export class MenuScreens {
         this.#font.draw(target, descriptions[this.trophySelection], 36, 295, 170, 16, 0);
       }
     } else if (this.phase === "options" && this.page > 0) {
-      this.#font.draw(target, this.page === 1
-        ? "사운드가 노트보다 빠르거나 느릴 경우, 아래의 값을 조절해 주십시오."
-        : "사운드가 약간씩 느려지는 경우, 아래의 값을 조절해 주십시오.", 36, 132, 170, 40, 0);
+      const descriptions = [
+        "사운드가 노트보다 빠르거나 느릴 경우, 아래의 값을 조절해 주십시오.",
+        "사운드가 약간씩 느려지는 경우, 아래의 값을 조절해 주십시오.",
+        "키패드(789가 위쪽)로\n플레이할 경우, 아래의 값을\n반전으로 바꿔 주십시오.",
+      ];
+      this.#font.draw(target, descriptions[this.page - 1], 36, 132, 170, 40, 0);
     } else if (this.phase === "report" && this.#help) {
       for (const player of this.#report) player.draw(target);
       for (const [number, x] of [[this.page + 1, 102], [4, 141]]) {
