@@ -4,11 +4,18 @@ import soundBankUrl from "../assets/SHS-10.SF2?url";
 import type { MusicPort } from "./io";
 import { parseSmaf, smafToMidi } from "./smaf";
 
+const bankUrls = import.meta.glob<string>("../assets/*.[sS][fF]2", { query: "?url", import: "default", eager: true });
+export const soundBanks = Object.entries(bankUrls).map(([path, url]) => ({
+  name: path.split("/").pop()!, url,
+})).sort((a, b) => a.name.localeCompare(b.name));
+
 export class BrowserMusic implements MusicPort {
   readonly #context = new AudioContext();
   readonly #ready: Promise<void>;
   #synth: WorkletSynthesizer | undefined;
   #sequencer: Sequencer | undefined;
+  #bankId = "gm";
+  #switching = false;
   #current: { midi: Uint8Array<ArrayBuffer>; repeat: boolean } | undefined;
   readonly #effectSources = new Set<AudioBufferSourceNode>();
   readonly #effectBuffers = new WeakMap<Uint8Array, { time: number; buffer: AudioBuffer }[]>();
@@ -21,7 +28,34 @@ export class BrowserMusic implements MusicPort {
     this.#musicGain.connect(this.#effectGain);
     // Prepare the bank while the opening screens run. A keyboard/pointer
     // gesture resumes the context without inventing a game input event.
-    this.#ready = this.#initialize().catch(onError);
+    this.#ready = this.#initialize();
+    void this.#ready.catch(onError);
+  }
+
+  async ready(): Promise<void> { await this.#ready; }
+
+  async setSoundBank(url: string): Promise<void> {
+    if (!soundBanks.some(bank => bank.url === url)) throw new Error("Unknown sound bank");
+    if (this.#switching) throw new Error("Sound bank is already loading");
+    this.#switching = true;
+    try {
+      await this.#ready;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Sound bank request failed (${response.status})`);
+      const synth = this.#synth!;
+      const nextId = this.#bankId === "gm" ? "alternate" : "gm";
+      await synth.soundBankManager.addSoundBank(await response.arrayBuffer(), nextId);
+      // Keep the old bank available until its replacement has loaded successfully.
+      synth.soundBankManager.priorityOrder = [nextId, this.#bankId];
+      await synth.soundBankManager.deleteSoundBank(this.#bankId);
+      this.#bankId = nextId;
+      // Seeking restores program/controller state with the new bank while keeping
+      // the song position and the game's clock unchanged.
+      synth.stopAll(true);
+      if (this.#current && this.#sequencer) this.#sequencer.currentTime = this.#sequencer.currentTime;
+    } finally {
+      this.#switching = false;
+    }
   }
 
   async #initialize(): Promise<void> {

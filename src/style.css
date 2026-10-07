@@ -22,6 +22,37 @@ canvas {
   display: none;
 }
 
+.phone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.soundfont-controls {
+  box-sizing: border-box;
+  width: min(360px, 100%);
+  padding: 12px;
+  border: 1px solid #353540;
+  border-radius: 8px;
+  background: #17171e;
+  color: #eee;
+  font: 13px system-ui, sans-serif;
+}
+
+.soundfont-controls label { display: block; margin-bottom: 6px; }
+.soundfont-controls select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #555563;
+  border-radius: 5px;
+  background: #252530;
+  color: #fff;
+  font: inherit;
+}
+.soundfont-controls select:focus-visible { outline: 2px solid #c4b4ff; }
+
 canvas[data-presentation="title"], canvas[data-presentation="upscaled"] {
   image-rendering: auto;
 }
@@ -41,7 +72,7 @@ canvas[data-presentation="title"], canvas[data-presentation="upscaled"] {
   }
 
   canvas {
-    width: min(100%, max(180px, calc((100dvh - 328px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 0.75)));
+    width: min(100%, max(180px, calc((100dvh - 450px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 0.75)));
     /* Keep keypad repainting separate from the continuously updated screen. */
     transform: translateZ(0);
   }

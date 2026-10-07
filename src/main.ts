@@ -1,6 +1,6 @@
 import { KeyboardInput } from "./input";
 import { mountVirtualKeyboard } from "./virtual-keyboard";
-import { BrowserMusic } from "./audio";
+import { BrowserMusic, soundBanks } from "./audio";
 import { loadResources } from "./resources";
 import { RhythmStarGame } from "./game";
 import { BacklightPort, EffectTrace, ScreenPort, StoragePort } from "./io";
@@ -96,6 +96,27 @@ const load = async (): Promise<void> => {
     const music = new BrowserMusic(error => {
       console.error("Background music failed:", error);
     });
+    const bankSelect = requireElement<HTMLSelectElement>("#soundfont");
+    for (const bank of soundBanks) {
+      bankSelect.add(new Option(bank.name, bank.url, false, bank.name === "SHS-10.SF2"));
+    }
+    let activeBank = bankSelect.value;
+    void music.ready().then(() => {
+      bankSelect.disabled = false;
+    }).catch(() => { /* Initialization errors are reported by BrowserMusic. */ });
+    bankSelect.addEventListener("change", async () => {
+      bankSelect.disabled = true;
+      music.unlock();
+      try {
+        await music.setSoundBank(bankSelect.value);
+        activeBank = bankSelect.value;
+      } catch (error) {
+        console.error("Sound bank change failed:", error);
+        bankSelect.value = activeBank;
+      } finally {
+        bankSelect.disabled = false;
+      }
+    });
     const [title, presentation] = await Promise.all([TitleRenderer.load(), UpscaledRenderer.load()]);
     const screen = new BrowserScreen(title, presentation);
     const game = new RhythmStarGame({
@@ -113,6 +134,7 @@ const load = async (): Promise<void> => {
     game.start();
     window.addEventListener("keydown", event => {
       music.unlock();
+      if (event.target instanceof Element && event.target.closest(".soundfont-controls")) return;
       if (event.key === 'Tab') {
         event.preventDefault();
         if (!event.repeat) {
