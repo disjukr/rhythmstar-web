@@ -62,7 +62,8 @@ export class GameplayEngine {
     if (!pressed && !this.heldMask) return 0;
     let consumed = 0;
     let lastGrade = 0;
-    for (const note of this.notes) {
+    for (let i = 1; i <= 256; i++) {
+      const note = this.notes[(this.#poolCursor + i) % 256];
       const event = note.event;
       if (note.free || note.state === 2 || note.state === 5 || !event || event.channel > 19) continue;
       const hold = event.channel >= 10;
