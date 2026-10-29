@@ -10,3 +10,5 @@ mise install
 pnpm install
 pnpm dev
 ```
+
+Press Tab or double-click/double-tap the game screen to switch between remastered and original graphics.
