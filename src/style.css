@@ -11,6 +11,7 @@ body {
 }
 
 canvas {
+  touch-action: manipulation;
   display: block;
   width: min(360px, 100vw, 75dvh);
   aspect-ratio: 3 / 4;

@@ -1,5 +1,6 @@
 import { KeyboardInput } from "./input";
 import { mountVirtualKeyboard } from "./virtual-keyboard";
+import { mountScreenToggle } from "./screen-toggle";
 import { BrowserMusic } from "./audio";
 import { loadResources } from "./resources";
 import { RhythmStarGame } from "./game";
@@ -110,14 +111,18 @@ const load = async (): Promise<void> => {
     });
     const input = new KeyboardInput(game);
     mountVirtualKeyboard(requireElement<HTMLElement>("#virtual-keyboard"), input);
+    const togglePresentation = (): void => {
+      screen.remastered = !game.remastered;
+      game.setRemastered(screen.remastered);
+    };
+    const unmountScreenToggle = mountScreenToggle(canvas, togglePresentation);
     game.start();
     window.addEventListener("keydown", event => {
       music.unlock();
       if (event.key === 'Tab') {
         event.preventDefault();
         if (!event.repeat) {
-          screen.remastered = !game.remastered;
-          game.setRemastered(screen.remastered);
+          togglePresentation();
         }
         return;
       }
@@ -133,7 +138,7 @@ const load = async (): Promise<void> => {
     for (const eventName of ["pointerdown", "pointerup", "touchend", "click"] as const) {
       window.addEventListener(eventName, () => music.unlock(), { capture: true, passive: true });
     }
-    window.addEventListener("beforeunload", () => { game.stop(); music.close(); }, { once: true });
+    window.addEventListener("beforeunload", () => { unmountScreenToggle(); game.stop(); music.close(); }, { once: true });
   } catch (error) {
     console.error("Game loading failed:", error);
   }
